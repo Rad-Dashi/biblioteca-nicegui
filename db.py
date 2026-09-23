@@ -1,112 +1,64 @@
 import sqlite3
-import csv
 import os
 
-DB_NAME = "book_collection.db"
-CSV_FILE = "book_collection.csv"
+DB_NAME = "db_libros.db"
 
-def db_connect():
+def connectar_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
-def db_initialize():
-    """Create table if it doesn't exist and load data from CSV for the first time."""
-    _create_table()
-    _load_csv_into_table()
+def inicializar_db():
+    """Crear la tabla si no existe para la primera vez."""
+    _crear_tabla()
+    #_load_csv_into_table()
 
-def _create_table():
-    conn = db_connect()
+def _crear_tabla():
+    conn = connectar_db()
     cursor = conn.cursor()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS book_collection (
+        CREATE TABLE IF NOT EXISTS db_libros (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            author TEXT NOT NULL,
-            publisher TEXT,
-            publishing_date TEXT,
-            cover TEXT,
-            category TEXT,
-            isbn TEXT,
-            lent_to TEXT,
-            status TEXT,
-            notes TEXT,
-            summary TEXT
+            portada TEXT,
+            titulo TEXT NOT NULL,
+            autor TEXT NOT NULL,
+            genero TEXT,
+            precio DECIMAL(10, 2),
+            anio_publicacion INTEGER,
+            editorial TEXT
         )
     """)
 
     conn.commit()
     conn.close()
 
-def _load_csv_into_table():
-    conn = db_connect()
-    cursor = conn.cursor()
-
-    # Records existence verification
-    cursor.execute("SELECT COUNT(*) FROM book_collection")
-    cantidad = cursor.fetchone()[0]
-
-    # If there is data or the CSV doesn't exist, we don't import again
-    if cantidad > 0 or not os.path.exists(CSV_FILE):
-        conn.close()
-        return
-    
-    with open(CSV_FILE, mode="r", encoding="utf-8") as f:
-        csv_reader = csv.reader(f)
-        next(csv_reader, None) # Skip headings
-
-        for row in csv_reader:
-            if not row or len(row) < 2: # Skip empty rows
-                continue
-
-            cursor.execute(
-                """
-                INSERT INTO book_collection (
-                    title, author, publisher, publishing_date, cover, category, isbn, lent_to, status, notes, summary
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                row,
-            )
-
-    conn.commit()
-    conn.close()
-    print(f"Data load successfully from {CSV_FILE}.")
-
-def db_create_book(
-        title,
-        author,
-        publisher="",
-        publishing_date="",
-        cover="",
-        category="",
-        isbn="",
-        lent_to="",
-        status="",
-        notes="",
-        summary="",
+def db_crear_libro(
+        titulo,
+        autor,
+        portada="",
+        genero="",
+        precio="",
+        anio_publicacion="",
+        editorial="",
 ):
-    """CREATE a new book into the database."""
-    conn = db_connect()
+    """CREAR nuevo libro en la base de datos."""
+    conn = connectar_db()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO book_collection (
-            title, author, publisher, publishing_date, cover, category, isbn, lent_to, status, notes, summary
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO db_libros (
+            titulo, autor, portada, genero, precio, anio_publicacion, editorial
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
     """,
         (
-            title, 
-            author, 
-            publisher, 
-            publishing_date, 
-            cover, 
-            category, 
-            isbn, 
-            lent_to, 
-            status, 
-            notes, 
-            summary
+            titulo, 
+            autor, 
+            portada, 
+            genero, 
+            precio, 
+            anio_publicacion, 
+            editorial
         ),
     )
     new_id = cursor.lastrowid
@@ -114,21 +66,21 @@ def db_create_book(
     conn.close()
     return new_id
 
-def db_read_books(search=None):
-    """READ books. If receives a 'search', filters by id, title, author, publisher o category."""
-    conn = db_connect()
+def db_leer_libros(search=None):
+    """LEER libros. Si recibe un 'search', filtra por id, título, autor, editorial o categoría."""
+    conn = connectar_db()
     cursor = conn.cursor()
 
     if not search:
-        cursor.execute("SELECT * FROM book_collection ORDER BY id DESC")
+        cursor.execute("SELECT * FROM db_libros ORDER BY id DESC")
     else:
         pattern = f"%{search}%"
-        # If the search is an integer, allows to search also by the exact ID
+        # Si la búsqueda es un entero, permite buscar también por el ID exacto
         if str(search).isdigit():
             cursor.execute(
                 """
-                SELECT * FROM book_collection
-                WHERE id = ? OR title LIKE ? OR author LIKE ? OR publisher LIKE ? OR category LIKE ?
+                SELECT * FROM db_libros
+                WHERE id = ? OR titulo LIKE ? OR autor LIKE ? OR editorial LIKE ? OR genero LIKE ?
                 ORDER BY id DESC
             """,
                 (int(search), pattern, pattern, pattern, pattern),
@@ -136,74 +88,62 @@ def db_read_books(search=None):
         else:
             cursor.execute(
                 """
-                SELECT * FROM book_collection
-                WHERE title LIKE ? OR author LIKE ? OR publisher LIKE ? OR category LIKE ?
+                SELECT * FROM db_libros
+                WHERE titulo LIKE ? OR autor LIKE ? OR editorial LIKE ? OR genero LIKE ?
                 ORDER BY id DESC
             """,
                 (pattern, pattern, pattern, pattern),
             )
 
-    rows = cursor.fetchall()
+    columnas = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    return [dict(columna) for columna in columnas]
 
-def db_update_book(
-    book_id,
-    title,
-    author,
-    publisher="",
-    publishing_date="",
-    cover="",
-    category="",
-    isbn="",
-    lent_to="",
-    status="",
-    notes="",
-    summary="",
+def db_actualizar_libro(
+    id,
+    titulo,
+    autor,
+    portada="",
+    genero="",
+    precio="",
+    anio_publicacion="",
+    editorial="",
 ):
-    """UPDATE data from an existing book."""
-    conn = db_connect()
+    """UPDATE data de un libro existente."""
+    conn = connectar_db()
     cursor = conn.cursor()
 
     cursor.execute(
         """
-        UPDATE book_collection 
-        SET title = ?, 
-            author = ?, 
-            publisher = ?, 
-            publishing_date = ?, 
-            cover = ?, 
-            category = ?, 
-            isbn = ?, 
-            lent_to = ?, 
-            status = ?, 
-            notes = ?, 
-            summary = ?
+        UPDATE db_libros 
+        SET titulo = ?, 
+            autor = ?, 
+            portada = ?, 
+            genero = ?, 
+            precio = ?, 
+            anio_publicacion = ?, 
+            editorial = ?
         WHERE id = ?
     """,
         (
-            title, 
-            author, 
-            publisher, 
-            publishing_date, 
-            cover, 
-            category, 
-            isbn, 
-            lent_to, 
-            status, 
-            notes, 
-            summary,
-            book_id,
+            titulo, 
+            autor, 
+            portada, 
+            genero, 
+            precio, 
+            anio_publicacion, 
+            editorial
         ),
     )
 
     conn.commit()
     conn.close()
 
-def db_delete_book(book_id):
-    """DELETE a book by ID."""
-    conn = db_connect()
+
+def db_borrar_libro(id):
+    """BORRAR un libro por ID."""
+    conn = connectar_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM book_collection WHERE id = ?", (book_id,))
+    cursor.execute("DELETE FROM db_libros WHERE id = ?", (id,))
     conn.commit()
     conn.close()

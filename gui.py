@@ -39,14 +39,14 @@ def renderizar_ui():
             ).props("color=primary")
  
     columnas = [
-        {"name": "portada", "label": "Portada", "field": "portada", "align": "center"},
-        {"name": "titulo", "label": "Título", "field": "titulo", "align": "left", "sortable": True},
-        {"name": "autor", "label": "Autor", "field": "autor", "align": "left", "sortable": True},
-        {"name": "genero", "label": "Género", "field": "genero", "align": "left", "sortable": True},
-        {"name": "precio", "label": "Precio", "field": "precio", "align": "right", "sortable": True},
-        {"name": "anio_publicacion", "label": "Año de Publicación", "field": "anio_publicacion", "align": "center", "sortable": True},
-        {"name": "editorial", "label": "Editorial", "field": "editorial", "align": "left", "sortable": True},
-        {"name": "acciones", "label": "Acciones", "field": "acciones", "align": "center"},
+        {"name": "portada", "label": "Portada", "field": "portada", "align": "center", "headerClasses": "text-center"},
+        {"name": "titulo", "label": "Título", "field": "titulo", "align": "left", "sortable": True, "headerClasses": "text-center"},
+        {"name": "autor", "label": "Autor", "field": "autor", "align": "left", "sortable": True, "headerClasses": "text-center"},
+        {"name": "genero", "label": "Género", "field": "genero", "align": "left", "sortable": True, "headerClasses": "text-center"},
+        {"name": "precio", "label": "Precio", "field": "precio", "align": "right", "sortable": True, "headerClasses": "text-center"},
+        {"name": "anio_publicacion", "label": "Año de Publicación", "field": "anio_publicacion", "align": "center", "sortable": True, "headerClasses": "text-center"},
+        {"name": "editorial", "label": "Editorial", "field": "editorial", "align": "left", "sortable": True, "headerClasses": "text-center"},
+        {"name": "acciones", "label": "Acciones", "field": "acciones", "align": "center", "headerClasses": "text-center"},
     ]
 
     # Lista de libros de la base de datos
@@ -86,13 +86,25 @@ def renderizar_ui():
         ''',
     )
 
+    # Custom slot: Precio (formateado como moneda: $11.000,00)
+    tabla.add_slot(
+        'body-cell-precio',
+        '''
+        <q-td :props="props" class="text-right">
+            {{ props.value !== null && props.value !== '' && props.value !== undefined
+                ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(props.value)
+                : '' }}
+        </q-td>
+        ''',
+    )
+
     # Custom slot: Acciones (editar/borrar)
     tabla.add_slot(
         "body-cell-acciones",
         """
         <q-td :props="props" class="text-center">
             <q-btn flat dense round icon="edit" color="primary"
-                @click"() => $parent.$emit('editar', props-row)" />
+                @click="() => $parent.$emit('editar', props.row)" />
             <q-btn flat dense round icon="delete" color="negative"
                 @click="() => $parent.$emit('borrar', props.row)" />
         </q-td>
@@ -148,20 +160,20 @@ def abrir_dialogo_libro(libro=None):
 
         vista_previa = ui.image(portada_actual).classes("w-24 h-32 object-cover rounded my-2") if es_local else None
 
-        def manejar_subida(e):
+        async def manejar_subida(e):
+            # Tengo que usar async porque en NiceGUI 3 save es una corrutina, y además tengo que declarar vista_previa como nonlocal para poder modificarla dentro de la función
             nonlocal vista_previa
-            extension = os.path.splitext(e.name)[1] or ".jpg"
+            extension = os.path.splitext(e.file.name)[1] or ".jpg"
             nombre_archivo = f"{uuid.uuid4().hex}{extension}"
             ruta_destino = os.path.join(PORTADAS_DIR, nombre_archivo)
-            with open(ruta_destino, "wb") as archivo_destino:
-                archivo_destino.write(e.content.read())
+            await e.file.save(ruta_destino)
 
             imagen_subida["ruta"] = f"/portadas/{nombre_archivo}"
             portada_url.value = "" # La subida local tiene prioridad sobre la URL
             if vista_previa is not None:
                 vista_previa.delete()
             vista_previa = ui.image(imagen_subida["ruta"]).classes("w-24 h-32 object-cover rounded my-2")
-            ui.notify(f'Imagen "{e.name}" cargada', color="positive")
+            ui.notify(f'Imagen "{e.file.name}" cargada', color="positive")
 
         ui.upload(
             label="Subir imagen desde tu computadora",
@@ -176,7 +188,7 @@ def abrir_dialogo_libro(libro=None):
                 if not titulo.value or not titulo.value.strip():
                     ui.notify("El título es obligatorio", color="warning")
                     return
-                if not auto.value or not autor.value.strip():
+                if not autor.value or not autor.value.strip():
                     ui.notify("El autor es obligatorio", color="warning")
                     return
                 if imagen_subida["ruta"]:

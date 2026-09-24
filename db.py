@@ -132,7 +132,8 @@ def db_actualizar_libro(
             genero, 
             precio, 
             anio_publicacion, 
-            editorial
+            editorial,
+            id,
         ),
     )
 

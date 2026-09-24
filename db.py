@@ -1,5 +1,4 @@
 import sqlite3
-import os
 
 DB_NAME = "db_libros.db"
 
@@ -11,7 +10,6 @@ def connectar_db():
 def inicializar_db():
     """Crear la tabla si no existe para la primera vez."""
     _crear_tabla()
-    #_load_csv_into_table()
 
 def _crear_tabla():
     conn = connectar_db()
@@ -72,28 +70,17 @@ def db_leer_libros(search=None):
     cursor = conn.cursor()
 
     if not search:
-        cursor.execute("SELECT * FROM db_libros ORDER BY id DESC")
+        cursor.execute("SELECT * FROM db_libros ORDER BY titulo ASC")
     else:
         pattern = f"%{search}%"
-        # Si la búsqueda es un entero, permite buscar también por el ID exacto
-        if str(search).isdigit():
-            cursor.execute(
-                """
-                SELECT * FROM db_libros
-                WHERE id = ? OR titulo LIKE ? OR autor LIKE ? OR editorial LIKE ? OR genero LIKE ?
-                ORDER BY id DESC
-            """,
-                (int(search), pattern, pattern, pattern, pattern),
-            )
-        else:
-            cursor.execute(
-                """
-                SELECT * FROM db_libros
-                WHERE titulo LIKE ? OR autor LIKE ? OR editorial LIKE ? OR genero LIKE ?
-                ORDER BY id DESC
-            """,
-                (pattern, pattern, pattern, pattern),
-            )
+        cursor.execute(
+            """
+            SELECT * FROM db_libros
+            WHERE titulo LIKE ? OR autor LIKE ? OR editorial LIKE ? OR genero LIKE ?
+            ORDER BY titulo ASC
+        """,
+            (pattern, pattern, pattern, pattern),
+        )
 
     columnas = cursor.fetchall()
     conn.close()

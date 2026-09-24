@@ -12,7 +12,7 @@ from db import (
 # Carpeta local donde se guardan las portadas subidas por el usuario
 PORTADAS_DIR = "portadas"
 os.makedirs(PORTADAS_DIR, exist_ok=True)
-app.add_static_files("/portadas", PORTADAS_DIR) # Acá entra en juego el import app de nicegui, para que pueda servir las imágenes de la carpeta portadas
+app.add_static_files("/portadas", PORTADAS_DIR) # Acá entra en juego el import app de NiceGUI, para que pueda servir las imágenes de la carpeta portadas
 
 # Referencia global a la tabla para poder refrescarla después de agregar, editar o borrar un libro
 tabla = None
@@ -27,6 +27,18 @@ def refrescar_tabla(busqueda=None):
 def renderizar_ui():
     global tabla
 
+    # Estilos CSS para forzar el centrado de los encabezados de la tabla
+    ui.add_head_html("""
+        <style>
+            .q-table thead th {
+                text-align: center !important;
+            }
+            .q-table thead th .q-table__sort-icon {
+                justify-content: center !important;
+            }
+        </style>
+    """)
+
     with ui.row().classes("w-full items-center justify-between my-4"):
         ui.label("Gestor de Libros").classes("text-2xl font-bold")
         with ui.row().classes("items-center gap-2"):
@@ -39,14 +51,14 @@ def renderizar_ui():
             ).props("color=primary")
  
     columnas = [
-        {"name": "portada", "label": "Portada", "field": "portada", "align": "center", "headerClasses": "text-center"},
-        {"name": "titulo", "label": "Título", "field": "titulo", "align": "left", "sortable": True, "headerClasses": "text-center"},
-        {"name": "autor", "label": "Autor", "field": "autor", "align": "left", "sortable": True, "headerClasses": "text-center"},
-        {"name": "genero", "label": "Género", "field": "genero", "align": "left", "sortable": True, "headerClasses": "text-center"},
-        {"name": "precio", "label": "Precio", "field": "precio", "align": "right", "sortable": True, "headerClasses": "text-center"},
-        {"name": "anio_publicacion", "label": "Año de Publicación", "field": "anio_publicacion", "align": "center", "sortable": True, "headerClasses": "text-center"},
-        {"name": "editorial", "label": "Editorial", "field": "editorial", "align": "left", "sortable": True, "headerClasses": "text-center"},
-        {"name": "acciones", "label": "Acciones", "field": "acciones", "align": "center", "headerClasses": "text-center"},
+        {"name": "portada", "label": "Portada", "field": "portada", "align": "center"},
+        {"name": "titulo", "label": "Título", "field": "titulo", "align": "left", "sortable": True},
+        {"name": "autor", "label": "Autor", "field": "autor", "align": "left", "sortable": True},
+        {"name": "genero", "label": "Género", "field": "genero", "align": "left", "sortable": True},
+        {"name": "precio", "label": "Precio", "field": "precio", "align": "right", "sortable": True},
+        {"name": "anio_publicacion", "label": "Año de Publicación", "field": "anio_publicacion", "align": "center", "sortable": True},
+        {"name": "editorial", "label": "Editorial", "field": "editorial", "align": "left", "sortable": True},
+        {"name": "acciones", "label": "Acciones", "field": "acciones", "align": "center"},
     ]
 
     # Lista de libros de la base de datos
@@ -185,6 +197,9 @@ def abrir_dialogo_libro(libro=None):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
 
             def guardar():
+                if not (titulo.value and titulo.value.strip()) or not (autor.value and autor.value.strip()):
+                    ui.notify("El título y el autor son obligatorios", color="warning")
+                    return
                 if not titulo.value or not titulo.value.strip():
                     ui.notify("El título es obligatorio", color="warning")
                     return
